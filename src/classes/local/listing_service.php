@@ -275,4 +275,33 @@ class listing_service {
         $listing->set('status', listing::STATUS_SOLD);
         $listing->update();
     }
+
+    /**
+     * Deletes a listing. Only the author or a moderator can do it.
+     *
+     * Also removes the links to the courses and the photos of the listing.
+     *
+     * @param int $listingid ID of the listing to delete.
+     * @throws moodle_exception If the current user is neither the author nor a moderator.
+     */
+    public static function delete_listing(int $listingid): void {
+        global $CFG, $DB, $USER;
+        require_once($CFG->libdir . '/filelib.php');
+
+        $listing = new listing($listingid);
+        $context = \context_system::instance();
+
+        $isauthor = (int) $listing->get('userid') === (int) $USER->id;
+        if (!$isauthor && !has_capability('local/chuspasocial:moderate', $context)) {
+            throw new moodle_exception('nopermissions', 'error', '', 'delete this listing');
+        }
+
+        $transaction = $DB->start_delegated_transaction();
+        $DB->delete_records('local_chuspasocial_lstcourse', ['listingid' => $listingid]);
+        $listing->delete();
+        $transaction->allow_commit();
+
+        $fs = get_file_storage();
+        $fs->delete_area_files($context->id, 'local_chuspasocial', 'photos', $listingid);
+    }
 }
