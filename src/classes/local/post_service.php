@@ -232,6 +232,14 @@ class post_service {
         // Guardar y devolver la publicacion.
         $post->create();
 
+        // Registrar el evento de publicacion creada.
+        $event = \local_chuspasocial\event\post_created::create([
+            'objectid' => $post->get('id'),
+            'context' => $context,
+            'userid' => $USER->id,
+        ]);
+        $event->trigger();
+
         return $post;
     }
 
